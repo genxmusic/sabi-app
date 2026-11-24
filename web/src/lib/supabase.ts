@@ -10,6 +10,8 @@ export type Settings = {
   whatsapp: string | null; email: string | null
   orange_code: string | null; afri_code: string | null; orange_ussd: string; afri_ussd: string
   card_link: string | null
+  rate_auto: boolean; rate_margin_pct: number; rate_market: number | null
+  rate_source: string | null; rate_updated_at: string | null; rate_alert: string | null
 }
 export type Option = {
   id: string; service_id: string; name: string; subtitle: string | null

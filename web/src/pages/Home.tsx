@@ -63,7 +63,7 @@ export default function Home() {
       </div></section>
 
       <section className="band" id="services"><div className="wrap">
-        <div className="head"><div><h2>Our services</h2>{rate > 0 && <p className="note">Prices in leones at NLe{rate} to US$1. Card payments are charged in US dollars.</p>}</div>
+        <div className="head"><div><h2>Our services</h2>{rate > 0 && <p className="note">Prices in leones at NLe{rate.toFixed(2)} to US$1, updated daily. Card payments are charged in US dollars.</p>}</div>
           <div className="chips">{(['all', ...Object.keys(CATEGORIES)] as (Category | 'all')[]).map(k => (
             <button key={k} className="chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{k === 'all' ? 'All' : CATEGORIES[k]}</button>))}</div>
         </div>

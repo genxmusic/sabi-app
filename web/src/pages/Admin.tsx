@@ -132,11 +132,19 @@ function AdminSettings() {
   const [err, setErr] = useState(''); const [msg, setMsg] = useState('')
   useEffect(() => setF(settings), [settings])
   if (!f) return <p>Loading…</p>
-  const set = (k: keyof Settings) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value })
+  const set = (k: keyof Settings) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value } as Settings)
+  async function acceptMarket() {
+    setErr(''); setMsg('')
+    const m = Number((f!.rate_alert ?? '').match(/to NLe([0-9.]+)/)?.[1])
+    if (!m) { setErr('Could not read the new market rate. Turn off automatic updates and set the rate by hand.'); return }
+    const { error } = await supabase.rpc('accept_market_rate', { p_market: m })
+    if (error) setErr(errText(error)); else { setMsg('Market rate accepted.'); reloadCatalogue() }
+  }
   async function save() {
     setErr(''); setMsg('')
     const { error } = await supabase.from('settings').update({
-      nle_per_usd: Number(f!.nle_per_usd), rate_date: f!.rate_date, deposit_pct: Number(f!.deposit_pct),
+      ...(f!.rate_auto ? {} : { nle_per_usd: Number(f!.nle_per_usd), rate_date: f!.rate_date }),
+      rate_auto: f!.rate_auto, rate_margin_pct: Number(f!.rate_margin_pct), deposit_pct: Number(f!.deposit_pct),
       whatsapp: f!.whatsapp?.replace(/\D/g, '') || null, email: f!.email?.trim() || null,
       orange_code: f!.orange_code?.trim() || null, afri_code: f!.afri_code?.trim() || null,
       orange_ussd: f!.orange_ussd, afri_ussd: f!.afri_ussd, card_link: f!.card_link?.trim() || null, updated_at: new Date().toISOString(),
@@ -145,9 +153,23 @@ function AdminSettings() {
   }
   return (
     <div className="form">
+      <div className="box">
+        <b>Exchange rate</b>
+        <p className="note">Customers see prices at <b>NLe{Number(f.nle_per_usd).toFixed(2)}</b> to US$1 (from {f.rate_date}).
+          {f.rate_market ? <> Market rate NLe{Number(f.rate_market).toFixed(2)} from {f.rate_source}{f.rate_updated_at ? ', checked ' + day(f.rate_updated_at) : ''}.</> : null}</p>
+        {f.rate_alert && <div className="adminnote"><p>{f.rate_alert}</p>
+          <button className="btn" type="button" onClick={acceptMarket}>Accept market rate</button></div>}
+        <label className="check"><input type="checkbox" checked={f.rate_auto} onChange={e => setF({ ...f, rate_auto: e.target.checked })} /> Update automatically every day (market rate + margin)</label>
+        <div className="grid2">
+          <label className="f">Sabi margin on top of market (%)<input type="number" min={0} max={50} step="0.5" value={f.rate_margin_pct} onChange={set('rate_margin_pct')} /></label>
+          {!f.rate_auto && <>
+            <label className="f">Leones per US$ (set by hand)<input type="number" step="0.01" value={f.nle_per_usd} onChange={set('nle_per_usd')} /></label>
+            <label className="f">Rate date<input type="date" value={f.rate_date} onChange={set('rate_date')} /></label>
+          </>}
+        </div>
+        <p className="note">A jump of more than 5% in one day is not applied automatically; you'll see a warning here to check it. Orders keep the rate they were placed at.</p>
+      </div>
       <div className="grid2">
-        <label className="f">Leones per US$<input type="number" step="0.01" value={f.nle_per_usd} onChange={set('nle_per_usd')} /></label>
-        <label className="f">Rate date<input type="date" value={f.rate_date} onChange={set('rate_date')} /></label>
         <label className="f">Deposit on setup work (%)<input type="number" min={0} max={100} value={f.deposit_pct} onChange={set('deposit_pct')} /></label>
         <label className="f">WhatsApp number (with 232)<input value={f.whatsapp ?? ''} onChange={set('whatsapp')} /></label>
         <label className="f">Email<input type="email" value={f.email ?? ''} onChange={set('email')} /></label>

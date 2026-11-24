@@ -25,7 +25,7 @@ supabase/functions/send-sms-otp  texts sign-in codes through Brevo (same as Smar
 - **Orange Money / Afrimoney:** customer pays Sabi's merchant code by USSD, then enters the transaction ID and the number they paid from. Order shows as *Checking payment* until staff press **Payment received** (or **Payment not found**).
 - **Card:** customer pays on Sabi's Stripe Payment Link (set to "customer chooses amount", US$) and enters the receipt number. Staff confirm the same way.
 - Setup work: deposit now (50% by default), balance on completion. Monthly plans: first month in advance. Per-person workshops: paid in full. CCTV, cyber security and big projects: free quote first.
-- Prices are stored in US$ and shown in leones at the rate in Admin › Settings. The database works out every amount itself; the browser never sets a price. A transaction ID can only be used on one order.
+- Prices are stored in US$ and shown in leones. The rate updates itself daily at 06:07 Freetown time: market rate (open.er-api.com) + Sabi's margin (2% by default), via the `update-rate` edge function and pg_cron. A jump over 5% is held for an admin to accept in Admin › Settings; automatic updates can be switched off there. The database works out every amount itself; the browser never sets a price. A transaction ID can only be used on one order.
 
 ## Roles
 
