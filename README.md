@@ -50,4 +50,4 @@ After that, admins set roles in Admin › Customers.
 5. **Vercel:** import the repo, root directory `web`, add the two `VITE_` variables.
 6. **Admin › Settings:** WhatsApp number, email, Orange Money and Afrimoney merchant codes, Stripe card link, exchange rate.
 
-Built and tested first on a free Supabase project; move to the Generation Next Entertainment (Pro) organization when going live.
+Database: Supabase project **Sabi-App** (`tplfuhllauwfmxohdvqv`, eu-west-1) in the free "Sabi IT and Security Solutions" organization; both migrations applied Nov 24, 2026. Move to the Generation Next Entertainment (Pro) organization when going live.
