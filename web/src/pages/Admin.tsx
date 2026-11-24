@@ -3,6 +3,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import { useApp } from '../lib/store'
 import { CATEGORIES, day, errText, supabase, type Category, type Option, type Order, type OrderStatus, type Profile, type Service, type Settings } from '../lib/supabase'
 import { OrderCard } from './Orders'
+import { RequireTwoStep } from '../lib/twostep'
 
 const FILTERS: [string, OrderStatus[]][] = [
   ['To check', ['payment_submitted']], ['Quotes', ['quote_requested']], ['Active', ['paid', 'in_progress']],
@@ -185,20 +186,56 @@ function AdminSettings() {
   )
 }
 
+type LogRow = { id: number; at: string; actor: string; action: string; target: string | null; details: Record<string, unknown> | null }
+const show = (v: unknown) => v === null || v === undefined || v === '' ? '(empty)' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+function describe(d: LogRow['details']) {
+  if (!d) return ''
+  if ('from' in d && 'to' in d && Object.keys(d).every(k => ['from', 'to', 'note', 'txn_id', 'method'].includes(k)))
+    return `${show(d.from)} → ${show(d.to)}` + (d.note ? ` · note: ${show(d.note)}` : '') + (d.txn_id ? ` · ID ${show(d.txn_id)}` : '')
+  return Object.entries(d).map(([k, v]) => {
+    const c = v as { from?: unknown; to?: unknown } | null
+    return c && typeof c === 'object' && 'to' in c ? `${k.replace(/_/g, ' ')}: ${show(c.from)} → ${show(c.to)}` : `${k.replace(/_/g, ' ')}: ${show(v)}`
+  }).join(' · ')
+}
+
+function AdminActivity() {
+  const [rows, setRows] = useState<LogRow[] | null>(null); const [err, setErr] = useState(''); const [q, setQ] = useState('')
+  useEffect(() => {
+    supabase.from('audit_log').select('*').order('at', { ascending: false }).limit(300)
+      .then(({ data, error }) => { if (error) setErr(errText(error)); setRows((data ?? []) as LogRow[]) })
+  }, [])
+  const term = q.trim().toLowerCase()
+  const shown = (rows ?? []).filter(r => !term || [r.actor, r.action, r.target, JSON.stringify(r.details)].some(v => v?.toLowerCase().includes(term)))
+  return (
+    <>
+      <p className="muted">Every payment decision, price change, settings change and role change, with who did it. Entries can't be edited or deleted.</p>
+      <label className="f">Search<input value={q} onChange={e => setQ(e.target.value)} placeholder="Name, order reference, action" /></label>
+      {err && <p className="err">{err}</p>}
+      {!rows ? <p>Loading…</p> : !shown.length ? <p className="muted">Nothing yet.</p> : <div className="scroll mt"><table className="tbl">
+        <thead><tr><th>When</th><th>Who</th><th>What</th><th>On</th><th>Details</th></tr></thead>
+        <tbody>{shown.map(r => <tr key={r.id}><td className="nowrap">{day(r.at)}</td><td>{r.actor}</td><td>{r.action}</td><td>{r.target}</td><td>{describe(r.details)}</td></tr>)}</tbody>
+      </table></div>}
+    </>
+  )
+}
+
 export default function Admin() {
   const { profile } = useApp()
   const admin = profile?.role === 'admin'
   return (
     <section className="band"><div className="wrap">
       <h1>Sabi admin</h1>
+      <RequireTwoStep>
       <nav className="tabs"><NavLink to="/admin" end>Orders</NavLink><NavLink to="/admin/customers">Customers</NavLink>
-        {admin && <NavLink to="/admin/services">Services</NavLink>}{admin && <NavLink to="/admin/settings">Settings</NavLink>}</nav>
+        {admin && <NavLink to="/admin/services">Services</NavLink>}{admin && <NavLink to="/admin/settings">Settings</NavLink>}{admin && <NavLink to="/admin/activity">Activity</NavLink>}</nav>
       <Routes>
         <Route index element={<AdminOrders />} />
         <Route path="customers" element={<AdminCustomers />} />
         {admin && <Route path="services" element={<AdminServices />} />}
         {admin && <Route path="settings" element={<AdminSettings />} />}
+        {admin && <Route path="activity" element={<AdminActivity />} />}
       </Routes>
+      </RequireTwoStep>
     </div></section>
   )
 }

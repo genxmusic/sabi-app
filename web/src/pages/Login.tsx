@@ -1,7 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/store'
 import { errText, intlPhone, supabase } from '../lib/supabase'
+import { startSignIn, takeSignOutReason } from '../lib/sessionGuard'
+import { BotCheck, TURNSTILE_KEY } from '../lib/turnstile'
 
 /**
  * Sign up and sign in are the same step (like SmarTix): phone number or email, then a one-time code.
@@ -18,6 +20,10 @@ export default function Login() {
   const [code, setCode] = useState(''); const [sent, setSent] = useState(false)
   const [d, setD] = useState({ full_name: '', business: '', location: '' })
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const [keep, setKeep] = useState(false)
+  const [outReason] = useState(() => takeSignOutReason())
+  const [captcha, setCaptcha] = useState(''); const [captchaRound, setCaptchaRound] = useState(0)
+  const onCaptcha = useCallback((t: string) => setCaptcha(t), [])
 
   const needsDetails = !!session && !!profile && !profile.full_name
   useEffect(() => { if (session && profile && profile.full_name) nav(next, { replace: true }) }, [session, profile, next, nav])
@@ -27,17 +33,21 @@ export default function Login() {
     const intl = intlPhone(phone)
     if (how === 'phone' && !intl) { setErr('Check the phone number, for example 076 123 456.'); return }
     if (how === 'email' && !/^\S+@\S+\.\S+$/.test(email.trim())) { setErr("That email address doesn't look right."); return }
+    startSignIn(keep)
     setBusy(true)
+    const captchaToken = captcha || undefined
     const { error } = how === 'phone'
-      ? await supabase.auth.signInWithOtp({ phone: intl, options: { channel: 'sms' } })
-      : await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + '/login?next=' + encodeURIComponent(next) } })
+      ? await supabase.auth.signInWithOtp({ phone: intl, options: { channel: 'sms', captchaToken } })
+      : await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + '/login?next=' + encodeURIComponent(next), captchaToken } })
     setBusy(false)
+    if (TURNSTILE_KEY) { setCaptcha(''); setCaptchaRound(r => r + 1) }   // each check works once
     if (error) setErr(errText(error)); else setSent(true)
   }
 
   async function verify(e: FormEvent) {
     e.preventDefault(); if (busy || !code.trim()) return
     setErr(''); setBusy(true)
+    startSignIn(keep)
     const { error } = how === 'phone'
       ? await supabase.auth.verifyOtp({ phone: intlPhone(phone), token: code.trim(), type: 'sms' })
       : await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
@@ -76,6 +86,7 @@ export default function Login() {
     <section className="band"><div className="wrap narrow">
       <h1>Sign in or create an account</h1>
       <p className="muted">One step for both. We send you a code, no password needed.</p>
+      {outReason && <p className="adminnote">{outReason === 'closed' ? 'You were signed out because the browser was closed.' : `You were signed out after ${outReason} minutes without activity.`} Tick "Keep me signed in" to stay signed in on your own phone.</p>}
       {!sent ? (
         <form className="form" onSubmit={send}>
           <div className="chips" role="tablist">
@@ -89,8 +100,11 @@ export default function Login() {
           </> : (
             <label className="f">Email<input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
           )}
+          <label className="check"><input type="checkbox" checked={keep} onChange={e => setKeep(e.target.checked)} /> Keep me signed in on this device</label>
+          <p className="note">Not ticked: you're signed out after 30 minutes without activity, or when you close the browser. Don't tick it on a shared phone or computer.</p>
+          <BotCheck onToken={onCaptcha} resetKey={captchaRound} />
           {err && <p className="err">{err}</p>}
-          <button className="btn" disabled={busy}>{busy ? 'Sending…' : 'Send me a code'}</button>
+          <button className="btn" disabled={busy || (!!TURNSTILE_KEY && !captcha)}>{busy ? 'Sending…' : 'Send me a code'}</button>
         </form>
       ) : (
         <form className="form" onSubmit={verify}>

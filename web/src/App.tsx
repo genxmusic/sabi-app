@@ -8,6 +8,7 @@ import Checkout from './pages/Checkout'
 import Orders from './pages/Orders'
 import Account from './pages/Account'
 import Admin from './pages/Admin'
+import { SessionGuard } from './lib/sessionGuard'
 
 export function Logo({ light }: { light?: boolean }) {
   return (
@@ -33,6 +34,7 @@ export default function App() {
   const isStaff = profile?.role === 'staff' || profile?.role === 'admin'
   return (
     <>
+      <SessionGuard />
       <header className="top"><div className="nav">
         <Logo light />
         <nav>
