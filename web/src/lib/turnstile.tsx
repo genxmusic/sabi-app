@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react'
 
-/** Cloudflare Turnstile bot check on sign-in (same as SmarTix). Off until VITE_TURNSTILE_SITE_KEY is set in Vercel. */
-export const TURNSTILE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined) || ''
+/**
+ * Cloudflare Turnstile bot check on sign-in (same as SmarTix). The site key is public by design (every visitor's
+ * browser sees it), so it lives here; VITE_TURNSTILE_SITE_KEY in Vercel overrides it. The secret key is only in
+ * Supabase › Authentication › Attack Protection › CAPTCHA.
+ */
+export const TURNSTILE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined) || '0x4AAAAAAGQ_qGFX00UF8KUL'
 
 type TS = { render: (el: HTMLElement, o: Record<string, unknown>) => string; reset: (id?: string) => void; remove: (id: string) => void }
 declare global { interface Window { turnstile?: TS } }

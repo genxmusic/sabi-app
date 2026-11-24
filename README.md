@@ -45,7 +45,7 @@ After that, admins set roles in Admin › Customers.
 
 - **Two-step sign-in for staff and admins:** after the email/SMS code, a 6-digit authenticator-app code. Staff/admin powers in the database (`is_staff`, `is_admin`) only work at `aal2`, so a stolen email alone can't confirm payments or change prices.
 - **Auto sign-out:** 30 minutes without activity (15 for staff/admins), or when the browser closes, unless "Keep me signed in" is ticked.
-- **Bot check on sign-in:** Cloudflare Turnstile. Off until `VITE_TURNSTILE_SITE_KEY` is set in Vercel and the secret key is saved in Supabase › Authentication › Attack Protection › CAPTCHA (Turnstile).
+- **Bot check on sign-in:** Cloudflare Turnstile widget "Sabi website" (hostnames sabitechsl.com, www.sabitechsl.com, sabi-app-lovat.vercel.app). Public site key in `web/src/lib/turnstile.tsx`; secret key only in Supabase › Authentication › Attack Protection › CAPTCHA (Turnstile).
 - **Activity log:** Admin › Activity. Order status changes, price/service changes, settings and role changes, with who and when. Written only by database triggers; can't be edited or deleted.
 - **Order limit:** 5 orders an hour per customer.
 - **Browser security headers:** strict Content-Security-Policy and others in `web/vercel.json`.
