@@ -174,10 +174,10 @@ function AdminSettings() {
         <label className="f">Deposit on setup work (%)<input type="number" min={0} max={100} value={f.deposit_pct} onChange={set('deposit_pct')} /></label>
         <label className="f">WhatsApp number (with 232)<input value={f.whatsapp ?? ''} onChange={set('whatsapp')} /></label>
         <label className="f">Email<input type="email" value={f.email ?? ''} onChange={set('email')} /></label>
-        <label className="f">Orange Money merchant code<input value={f.orange_code ?? ''} onChange={set('orange_code')} /></label>
-        <label className="f">Orange Money dial code<input value={f.orange_ussd} onChange={set('orange_ussd')} /></label>
-        <label className="f">Afrimoney merchant code<input value={f.afri_code ?? ''} onChange={set('afri_code')} /></label>
-        <label className="f">Afrimoney dial code<input value={f.afri_ussd} onChange={set('afri_ussd')} /></label>
+        <label className="f">Orange Money merchant code (Gen X Music)<input value={f.orange_code ?? ''} onChange={set('orange_code')} /></label>
+        <label className="f">Orange Money dial code (menu)<input value={f.orange_ussd} onChange={set('orange_ussd')} /></label>
+        <label className="f">Afrimoney merchant code (Gen X Music)<input value={f.afri_code ?? ''} onChange={set('afri_code')} /></label>
+        <label className="f">Afrimoney dial code ({'{code}'} and {'{amount}'} are filled in)<input value={f.afri_ussd} onChange={set('afri_ussd')} /></label>
       </div>
       <label className="f">Stripe card payment link (customer chooses amount, US$)<input value={f.card_link ?? ''} onChange={set('card_link')} placeholder="https://buy.stripe.com/..." /></label>
       {msg && <p className="okmsg">{msg}</p>}{err && <p className="err">{err}</p>}

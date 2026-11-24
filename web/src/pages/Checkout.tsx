@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { priceCart, useApp } from '../lib/store'
 import { errText, nle, supabase, usd } from '../lib/supabase'
+import { ORANGE_REFERENCE, payLink } from '../lib/dial'
 
 type Method = 'orange' | 'afrimoney' | 'card'
 
@@ -48,6 +49,7 @@ export default function Checkout() {
 
   const code = method === 'orange' ? settings?.orange_code : settings?.afri_code
   const ussd = method === 'orange' ? settings?.orange_ussd : settings?.afri_ussd
+  const dial = method && method !== 'card' && code ? payLink(ussd, code, t.today * rate, method === 'orange' ? ORANGE_REFERENCE : null) : null
   return (
     <section className="band"><div className="wrap two">
       <div>
@@ -85,8 +87,12 @@ export default function Checkout() {
             </div>
             {method && method !== 'card' && <div className="box">
               <b>Pay {nle(t.today, rate)} with {method === 'orange' ? 'Orange Money' : 'Afrimoney'}</b>
-              <p className="mt">Sabi merchant code</p><div className="code">{code || 'Ask us on WhatsApp'}</div>
-              <ol className="how"><li>Dial <b>{ussd}</b> and choose merchant payment.</li><li>Enter the merchant code and <b>{nle(t.today, rate)}</b>.</li><li>Confirm with your PIN. You'll get an SMS with a transaction ID.</li><li>Enter that transaction ID and the number you paid from below.</li></ol>
+              <p className="note">Paid to Gen X Music (Sabi's parent company), merchant code <b>{code || '…'}</b>. Pay from your own {method === 'orange' ? 'Orange Money' : 'Afrimoney'} account: agents can't pay a merchant code.</p>
+              {dial ? <>
+                <a className="btn blue" href={dial.href}>Tap to pay: {dial.code}</a>
+                <p className="note">On a computer or iPhone that doesn't dial, type <b>{dial.code}</b> on your phone. <button type="button" className="linkbtn" onClick={() => navigator.clipboard?.writeText(dial.code).catch(() => {})}>Copy code</button></p>
+                <ol className="how">{dial.menu && <li>The merchant menu opens. Type:</li>}{dial.steps.map(x => <li key={x}>{x}</li>)}<li>You'll get an SMS with a transaction ID. Enter it below with the number you paid from.</li></ol>
+              </> : <p className="note">Mobile money is being set up. Please ask Sabi on WhatsApp.</p>}
               <label className="f"><span className="req">Transaction ID</span><input value={txn} onChange={e => setTxn(e.target.value)} placeholder="From your payment SMS" /></label>
               <label className="f"><span className="req">Number you paid from</span><input type="tel" value={payer} onChange={e => setPayer(e.target.value)} placeholder={profile?.phone || ''} /></label>
             </div>}

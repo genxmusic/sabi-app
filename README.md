@@ -22,6 +22,11 @@ supabase/functions/send-sms-otp  texts sign-in codes through Brevo (same as Smar
 
 ## How payment works (same as SmarTix)
 
+Sabi is owned by Gen X Music, so payments go to Gen X Music's accounts, like SmarTix:
+Orange Money merchant code 204604 and Afrimoney merchant code 148848 (shared with SmarTix; Orange reference "Sabi").
+Checkout has tap-to-dial buttons: Afrimoney `*161*4*148848*AMOUNT#`, Orange Money menu `#144*4#`.
+
+
 - **Orange Money / Afrimoney:** customer pays Sabi's merchant code by USSD, then enters the transaction ID and the number they paid from. Order shows as *Checking payment* until staff press **Payment received** (or **Payment not found**).
 - **Card:** customer pays on Sabi's Stripe Payment Link (set to "customer chooses amount", US$) and enters the receipt number. Staff confirm the same way.
 - Setup work: deposit now (50% by default), balance on completion. Monthly plans: first month in advance. Per-person workshops: paid in full. CCTV, cyber security and big projects: free quote first.
