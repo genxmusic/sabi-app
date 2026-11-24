@@ -9,7 +9,7 @@ Customer app for **Sabi IT and Security Solutions**: customers see every service
 ```
 web/                         Vite + React + TypeScript site (deploys to Vercel)
   src/pages/Home.tsx           services and prices
-  src/pages/Login.tsx          sign up / sign in by phone (SMS code) or email
+  src/pages/Login.tsx          one step to sign up or sign in: phone or email, then a one-time code (no passwords)
   src/pages/Checkout.tsx       order, pay, send transaction ID
   src/pages/Orders.tsx         customer's orders and their status
   src/pages/Account.tsx        customer's details
@@ -44,7 +44,9 @@ After that, admins set roles in Admin › Customers.
 ## Setup
 
 1. **Database:** run the files in `supabase/migrations` in order (SQL editor, or `supabase db push`).
-2. **Auth:** Authentication › URL configuration: add the site URL. Email sign-up works straight away.
+2. **Auth:** Authentication › URL Configuration: Site URL and Redirect URL `https://<site>/**`.
+   Email codes: Authentication › Emails › templates **Magic link** and **Confirm signup** must show `{{ .Token }}` (the code), with the link as a backup.
+   Custom SMTP (Resend, like SmarTix) so emails reach customers, not just Supabase team members.
 3. **Phone sign-in (optional):** deploy `send-sms-otp`, set Auth › Hooks › Send SMS hook to its URL, save the hook secret as `SEND_SMS_HOOK_SECRET` and the Brevo key as `BREVO_API_KEY`, turn on Auth › Providers › Phone.
 4. **Web:** copy `web/.env.example` to `web/.env` with the project URL and publishable key; `cd web && npm install && npm run dev`.
 5. **Vercel:** import the repo, root directory `web`, add the two `VITE_` variables.
