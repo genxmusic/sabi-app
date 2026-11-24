@@ -1,0 +1,53 @@
+# Sabi app
+
+Customer app for **Sabi IT and Security Solutions**: customers see every service, create an account (phone number or email), choose services and pay with Orange Money, Afrimoney or card. Sabi staff check payments and run orders from the Admin pages.
+
+*Smart tech. Safe business.*
+
+## What's in it
+
+```
+web/                         Vite + React + TypeScript site (deploys to Vercel)
+  src/pages/Home.tsx           services and prices
+  src/pages/Login.tsx          sign up / sign in by phone (SMS code) or email
+  src/pages/Checkout.tsx       order, pay, send transaction ID
+  src/pages/Orders.tsx         customer's orders and their status
+  src/pages/Account.tsx        customer's details
+  src/pages/Admin.tsx          staff: orders, customers; admin: services, settings, roles
+supabase/migrations/         database (run in order)
+  0001_accounts_services_orders.sql
+  0002_seed_services.sql       starting services and prices
+supabase/functions/send-sms-otp  texts sign-in codes through Brevo (same as SmarTix)
+```
+
+## How payment works (same as SmarTix)
+
+- **Orange Money / Afrimoney:** customer pays Sabi's merchant code by USSD, then enters the transaction ID and the number they paid from. Order shows as *Checking payment* until staff press **Payment received** (or **Payment not found**).
+- **Card:** customer pays on Sabi's Stripe Payment Link (set to "customer chooses amount", US$) and enters the receipt number. Staff confirm the same way.
+- Setup work: deposit now (50% by default), balance on completion. Monthly plans: first month in advance. Per-person workshops: paid in full. CCTV, cyber security and big projects: free quote first.
+- Prices are stored in US$ and shown in leones at the rate in Admin › Settings. The database works out every amount itself; the browser never sets a price. A transaction ID can only be used on one order.
+
+## Roles
+
+- **customer:** everyone who signs up.
+- **staff:** sees all orders and customers, confirms payments, moves jobs along.
+- **admin:** staff plus editing services, prices, settings and roles.
+
+Make the first admin after signing up once (Supabase › SQL editor):
+
+```sql
+update public.profiles set role = 'admin' where email = 'YOUR-EMAIL';
+```
+
+After that, admins set roles in Admin › Customers.
+
+## Setup
+
+1. **Database:** run the files in `supabase/migrations` in order (SQL editor, or `supabase db push`).
+2. **Auth:** Authentication › URL configuration: add the site URL. Email sign-up works straight away.
+3. **Phone sign-in (optional):** deploy `send-sms-otp`, set Auth › Hooks › Send SMS hook to its URL, save the hook secret as `SEND_SMS_HOOK_SECRET` and the Brevo key as `BREVO_API_KEY`, turn on Auth › Providers › Phone.
+4. **Web:** copy `web/.env.example` to `web/.env` with the project URL and publishable key; `cd web && npm install && npm run dev`.
+5. **Vercel:** import the repo, root directory `web`, add the two `VITE_` variables.
+6. **Admin › Settings:** WhatsApp number, email, Orange Money and Afrimoney merchant codes, Stripe card link, exchange rate.
+
+Built and tested first on a free Supabase project; move to the Generation Next Entertainment (Pro) organization when going live.
