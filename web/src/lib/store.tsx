@@ -2,16 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { Session } from '@supabase/supabase-js'
 import { supabase, type Profile, type Service, type Settings } from './supabase'
 
-export type CartLine = { option_id: string; qty: number }
 type Ctx = {
   session: Session | null; profile: Profile | null; ready: boolean; reloadProfile: () => Promise<void>
   services: Service[]; settings: Settings | null; reloadCatalogue: () => Promise<void>
-  cart: CartLine[]; setCart: (c: CartLine[]) => void
+  picked: string[]; setPicked: (ids: string[]) => void
 }
 const C = createContext<Ctx>(null as unknown as Ctx)
 export const useApp = () => useContext(C)
 
-function loadCart(): CartLine[] { try { return JSON.parse(localStorage.getItem('sabiCart') || '[]') } catch { return [] } }
+function loadPicked(): string[] { try { const v = JSON.parse(localStorage.getItem('sabiPicked') || '[]'); return Array.isArray(v) ? v.filter(x => typeof x === 'string') : [] } catch { return [] } }
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -19,9 +18,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [services, setServices] = useState<Service[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [cart, setCartState] = useState<CartLine[]>(loadCart)
+  const [picked, setPickedState] = useState<string[]>(loadPicked)
 
-  const setCart = (c: CartLine[]) => { setCartState(c); try { localStorage.setItem('sabiCart', JSON.stringify(c)) } catch { /* private mode */ } }
+  const setPicked = (ids: string[]) => { setPickedState(ids); try { localStorage.setItem('sabiPicked', JSON.stringify(ids)) } catch { /* private mode */ } }
 
   async function reloadProfile() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -45,26 +44,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  const value = useMemo(() => ({ session, profile, ready, reloadProfile, services, settings, reloadCatalogue, cart, setCart }),
-    [session, profile, ready, services, settings, cart])
+  const value = useMemo(() => ({ session, profile, ready, reloadProfile, services, settings, reloadCatalogue, picked, setPicked }),
+    [session, profile, ready, services, settings, picked])
   return <C.Provider value={value}>{children}</C.Provider>
-}
-
-/** Works out what is due, the same way the database does (the database has the final say). */
-export function priceCart(cart: CartLine[], services: Service[], depositPct: number) {
-  let today = 0, balance = 0, monthly = 0, quotes = 0
-  const lines = cart.flatMap(l => {
-    for (const s of services) {
-      const o = s.service_options.find(x => x.id === l.option_id)
-      if (!o) continue
-      const qty = s.per_person ? l.qty : 1
-      if (o.is_quote) { quotes++; return [{ s, o, qty, today: 0 }] }
-      const once = Number(o.price_usd) * qty
-      const dep = s.per_person ? once : Math.round(once * depositPct) / 100
-      today += dep + Number(o.monthly_usd); balance += once - dep; monthly += Number(o.monthly_usd)
-      return [{ s, o, qty, today: dep + Number(o.monthly_usd) }]
-    }
-    return []
-  })
-  return { lines, today, balance, monthly, quotes }
 }

@@ -4,7 +4,7 @@ import { useApp } from './lib/store'
 import { supabase } from './lib/supabase'
 import Home from './pages/Home'
 import Login from './pages/Login'
-import Checkout from './pages/Checkout'
+import Quote from './pages/Quote'
 import Orders from './pages/Orders'
 import Account from './pages/Account'
 import Admin from './pages/Admin'
@@ -30,7 +30,7 @@ function RequireSignIn({ children, staff }: { children: ReactNode; staff?: boole
 }
 
 export default function App() {
-  const { session, profile, cart, settings } = useApp()
+  const { session, profile, picked, settings } = useApp()
   const isStaff = profile?.role === 'staff' || profile?.role === 'admin'
   return (
     <>
@@ -43,13 +43,14 @@ export default function App() {
           {isStaff && <NavLink to="/admin">Admin</NavLink>}
           {session ? <NavLink to="/account">Account</NavLink> : <NavLink to="/login">Sign in</NavLink>}
         </nav>
-        <Link className="btn cartbtn" to="/checkout">Your order <span>{cart.length}</span></Link>
+        <Link className="btn cartbtn" to="/quote">Get a quote{picked.length > 0 && <span>{picked.length}</span>}</Link>
       </div></header>
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/quote" element={<Quote />} />
+          <Route path="/checkout" element={<Navigate to="/quote" replace />} />
           <Route path="/orders" element={<RequireSignIn><Orders /></RequireSignIn>} />
           <Route path="/account" element={<RequireSignIn><Account /></RequireSignIn>} />
           <Route path="/admin/*" element={<RequireSignIn staff><Admin /></RequireSignIn>} />

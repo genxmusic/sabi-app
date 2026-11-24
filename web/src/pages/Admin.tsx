@@ -1,14 +1,112 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { useApp } from '../lib/store'
-import { CATEGORIES, day, errText, supabase, type Category, type Option, type Order, type OrderStatus, type Profile, type Service, type Settings } from '../lib/supabase'
+import { CATEGORIES, day, errText, supabase, type Category, type Option, type Order, type OrderStatus, type Profile, type Question, type Service, type Settings } from '../lib/supabase'
 import { OrderCard } from './Orders'
 import { RequireTwoStep } from '../lib/twostep'
 
 const FILTERS: [string, OrderStatus[]][] = [
-  ['To check', ['payment_submitted']], ['Quotes', ['quote_requested']], ['Active', ['paid', 'in_progress']],
-  ['Done', ['completed']], ['Rejected or cancelled', ['rejected', 'cancelled']],
+  ['Quotes to price', ['quote_requested']], ['Payments to check', ['payment_submitted']], ['Quotes sent', ['quote_sent', 'quote_declined']],
+  ['Active', ['paid', 'in_progress']], ['Done', ['completed']], ['Rejected or cancelled', ['rejected', 'cancelled']],
 ]
+
+type Line = { service_name: string; option_name: string; qty: number; price_usd: string; monthly_usd: string }
+
+/** What the customer told us: answers per service, timing, own words and follow-ups */
+function IntakeDetails({ o }: { o: Order }) {
+  const i = o.intake
+  if (!i) return null
+  return (
+    <details open={o.status === 'quote_requested'}><summary>All answers</summary>
+      <div className="answers">
+        {i.services?.map(s => <div key={s.id}><b>{s.name}</b><ul className="lines">{s.answers.filter(a => a.a).map(a => <li key={a.q}>{a.q}: <b>{a.a}</b></li>)}</ul></div>)}
+        {i.when && <p>When: <b>{i.when}</b></p>}
+        {i.description && <p>In their words: {i.description}</p>}
+        {!!i.followups?.length && <div><b>Follow-up answers</b><ul className="lines">{i.followups.map(f => <li key={f.q}>{f.q}: <b>{f.a}</b></li>)}</ul></div>}
+      </div>
+    </details>
+  )
+}
+
+function QuoteEditor({ o, onSaved }: { o: Order; onSaved: () => void }) {
+  const { settings } = useApp()
+  const rate = Number(settings?.nle_per_usd ?? o.nle_per_usd)
+  const existing = o.order_items.filter(x => !x.is_quote)
+  const [lines, setLines] = useState<Line[]>(existing.length
+    ? existing.map(x => ({ service_name: x.service_name, option_name: x.option_name === '-' ? '' : x.option_name, qty: x.qty, price_usd: String(Number(x.price_usd) || ''), monthly_usd: String(Number(x.monthly_usd) || '') }))
+    : o.order_items.map(x => ({ service_name: x.service_name, option_name: '', qty: 1, price_usd: '', monthly_usd: '' })))
+  const [dep, setDep] = useState(String(o.deposit_pct ?? settings?.deposit_pct ?? 50))
+  const [valid, setValid] = useState('14')
+  const [note, setNote] = useState(o.quote_note ?? '')
+  const [prices, setPrices] = useState<(Option & { services: { name: string } })[]>([])
+  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState('')
+  useEffect(() => { supabase.from('service_options').select('*, services(name)').eq('active', true).order('sort').then(({ data }) => setPrices((data ?? []) as never)) }, [])
+  const upd = (i: number, p: Partial<Line>) => setLines(lines.map((l, j) => j === i ? { ...l, ...p } : l))
+  const once = lines.reduce((t, l) => t + (Number(l.price_usd) || 0) * (l.qty || 1), 0)
+  const month = lines.reduce((t, l) => t + (Number(l.monthly_usd) || 0) * (l.qty || 1), 0)
+  const today = Math.round(once * (Number(dep) || 0)) / 100 + month
+  const fmt = (n: number) => 'NLe' + Math.round(n * rate).toLocaleString('en-US') + ' (US$' + n.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ')'
+  async function save(send: boolean) {
+    setErr(''); setMsg(''); setBusy(true)
+    const { error } = await supabase.rpc('save_quote', {
+      p_order: o.id, p_note: note, p_deposit_pct: Number(dep), p_valid_days: Number(valid), p_send: send,
+      p_items: lines.filter(l => l.service_name.trim()).map(l => ({ ...l, price_usd: Number(l.price_usd) || 0, monthly_usd: Number(l.monthly_usd) || 0 })),
+    })
+    setBusy(false)
+    if (error) setErr(errText(error)); else { setMsg(send ? 'Quote sent.' : 'Draft saved.'); onSaved() }
+  }
+  return (
+    <div className="form quoteedit">
+      <b>Price this quote</b>
+      <p className="note">Prices in US$; the customer sees leones at today's rate (NLe{rate.toFixed(2)}).</p>
+      {lines.map((l, i) => (
+        <div className="qline" key={i}>
+          <input aria-label="Item" placeholder="Item" value={l.service_name} onChange={e => upd(i, { service_name: e.target.value })} />
+          <input aria-label="Details" placeholder="Details (optional)" value={l.option_name} onChange={e => upd(i, { option_name: e.target.value })} />
+          <label>Qty<input type="number" min={1} value={l.qty} onChange={e => upd(i, { qty: Math.max(1, +e.target.value || 1) })} /></label>
+          <label>One-off US$<input type="number" min={0} step="0.01" value={l.price_usd} onChange={e => upd(i, { price_usd: e.target.value })} /></label>
+          <label>Monthly US$<input type="number" min={0} step="0.01" value={l.monthly_usd} onChange={e => upd(i, { monthly_usd: e.target.value })} /></label>
+          <button type="button" className="linkbtn" onClick={() => setLines(lines.filter((_, j) => j !== i))}>Remove</button>
+        </div>))}
+      <div className="row">
+        <button type="button" className="btn ghost" onClick={() => setLines([...lines, { service_name: '', option_name: '', qty: 1, price_usd: '', monthly_usd: '' }])}>Add a line</button>
+        {prices.length > 0 && <select className="inp" value="" onChange={e => { const p = prices.find(x => x.id === e.target.value); if (p) setLines([...lines, { service_name: p.services?.name ?? p.name, option_name: p.name + (p.subtitle ? ': ' + p.subtitle : ''), qty: 1, price_usd: String(Number(p.price_usd) || ''), monthly_usd: String(Number(p.monthly_usd) || '') }]) }}>
+          <option value="">Add from price list…</option>
+          {prices.filter(p => !p.is_quote).map(p => <option key={p.id} value={p.id}>{p.services?.name}: {p.name} ({[Number(p.price_usd) ? 'US$' + Number(p.price_usd) : '', Number(p.monthly_usd) ? 'US$' + Number(p.monthly_usd) + '/mo' : ''].filter(Boolean).join(' + ')})</option>)}
+        </select>}
+      </div>
+      <div className="grid2">
+        <label className="f">Deposit on one-off work (%)<input type="number" min={0} max={100} value={dep} onChange={e => setDep(e.target.value)} /></label>
+        <label className="f">Quote valid for (days)<input type="number" min={1} max={90} value={valid} onChange={e => setValid(e.target.value)} /></label>
+      </div>
+      <label className="f">Note to the customer (optional)<textarea rows={2} value={note} onChange={e => setNote(e.target.value)} maxLength={2000} /></label>
+      <div className="sum">
+        <div><span>One-off total</span><span>{fmt(once)}</span></div>
+        {month > 0 && <div><span>Monthly</span><span>{fmt(month)}</span></div>}
+        <div className="big"><span>Customer pays now</span><span>{fmt(today)}</span></div>
+      </div>
+      {msg && <p className="okmsg">{msg}</p>}{err && <p className="err">{err}</p>}
+      <div className="row"><button className="btn ghost" disabled={busy} onClick={() => save(false)}>Save draft</button>
+        <button className="btn grow" disabled={busy} onClick={() => save(true)}>{o.status === 'quote_requested' ? 'Approve and send to customer' : 'Update and resend'}</button></div>
+    </div>
+  )
+}
+
+/** Tell the customer on WhatsApp that their quote is ready */
+function TellCustomer({ o }: { o: Order }) {
+  const [copied, setCopied] = useState(false)
+  const name = o.profiles?.full_name?.split(' ')[0] || 'there'
+  const msg = `Hello ${name}, your Sabi quote ${o.ref} is ready: ${nleFmt(o)} to start. See it and accept it here: https://www.sabitechsl.com/orders\n\nSabi IT and Security Solutions. Smart tech. Safe business.`
+  const phone = (o.profiles?.phone ?? '').replace(/\D/g, '')
+  return (
+    <div className="row">
+      {phone && <a className="btn blue" href={`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noopener noreferrer">Tell them on WhatsApp</a>}
+      <button type="button" className="btn ghost" onClick={() => navigator.clipboard?.writeText(msg).then(() => setCopied(true)).catch(() => {})}>{copied ? 'Copied' : 'Copy message'}</button>
+      {!phone && o.profiles?.email && <span className="note">Customer email: {o.profiles.email}</span>}
+    </div>
+  )
+}
+const nleFmt = (o: Order) => 'NLe' + Math.round(Number(o.pay_today_usd) * Number(o.nle_per_usd)).toLocaleString('en-US')
 
 function AdminOrders() {
   const [tab, setTab] = useState(0)
@@ -27,27 +125,71 @@ function AdminOrders() {
     if (error) setErr(errText(error)); else load()
   }
   const term = q.trim().toLowerCase()
-  const shown = (orders ?? []).filter(o => !term || [o.ref, o.txn_id, o.payer_number, o.profiles?.full_name, o.profiles?.business, o.profiles?.phone, o.profiles?.email].some(v => v?.toLowerCase().includes(term)))
+  const shown = (orders ?? []).filter(o => !term || [o.ref, o.txn_id, o.payer_number, o.profiles?.full_name, o.profiles?.business, o.profiles?.phone, o.profiles?.email, o.ai_summary].some(v => v?.toLowerCase().includes(term)))
   const actions: Partial<Record<OrderStatus, [OrderStatus, string, string?][]>> = {
     payment_submitted: [['paid', 'Payment received'], ['rejected', 'Payment not found', 'ghost']],
-    quote_requested: [['in_progress', 'Quote accepted, start work'], ['cancelled', 'Cancel', 'ghost']],
+    quote_requested: [['cancelled', 'Cancel request', 'ghost']],
+    quote_sent: [['cancelled', 'Withdraw quote', 'ghost']],
+    quote_declined: [['cancelled', 'Close', 'ghost']],
     paid: [['in_progress', 'Start work'], ['completed', 'Mark completed', 'ghost']],
     in_progress: [['completed', 'Mark completed'], ['cancelled', 'Cancel', 'ghost']],
     rejected: [['payment_submitted', 'Check again', 'ghost']],
   }
+  const quoting = (s: OrderStatus) => s === 'quote_requested' || s === 'quote_sent' || s === 'quote_declined'
   return (
     <>
       <div className="chips">{FILTERS.map(([n], i) => <button key={n} className="chip" aria-pressed={tab === i} onClick={() => setTab(i)}>{n}</button>)}</div>
-      <label className="f mt">Search<input value={q} onChange={e => setQ(e.target.value)} placeholder="Reference, transaction ID, name or phone" /></label>
+      <label className="f mt">Search<input value={q} onChange={e => setQ(e.target.value)} placeholder="Reference, transaction ID, name, phone or request" /></label>
       {err && <p className="err">{err}</p>}
       {!orders ? <p>Loading…</p> : !shown.length ? <p className="muted">Nothing here.</p> : <div className="stackgap mt">{shown.map(o => (
-        <OrderCard key={o.id} o={o}>
+        <OrderCard key={o.id} o={o} staff>
+          <IntakeDetails o={o} />
+          {o.status === 'quote_sent' && <TellCustomer o={o} />}
+          {quoting(o.status) && <QuoteEditor o={o} onSaved={load} />}
           {actions[o.status] && <>
-            <label className="f">Note to customer (optional)<input value={notes[o.id] ?? ''} onChange={e => setNotes({ ...notes, [o.id]: e.target.value })} /></label>
+            {!quoting(o.status) && <label className="f">Note to customer (optional)<input value={notes[o.id] ?? ''} onChange={e => setNotes({ ...notes, [o.id]: e.target.value })} /></label>}
             <div className="row">{actions[o.status]!.map(([s, label, cls]) => <button key={s} className={'btn ' + (cls ?? '')} onClick={() => act(o, s)}>{label}</button>)}</div>
           </>}
         </OrderCard>))}</div>}
     </>
+  )
+}
+
+const QTYPES: [Question['type'], string][] = [['text', 'Short answer'], ['long', 'Long answer'], ['number', 'Number'], ['select', 'Pick one'], ['multi', 'Pick any'], ['yesno', 'Yes / No']]
+
+/** Edit the intake questions customers answer for one service */
+function QuestionsEditor({ s, onSaved }: { s: Service; onSaved: () => void }) {
+  const [qs, setQs] = useState<Question[]>(s.intake_questions ?? [])
+  const [err, setErr] = useState(''); const [msg, setMsg] = useState('')
+  const upd = (i: number, p: Partial<Question>) => setQs(qs.map((q, j) => j === i ? { ...q, ...p } : q))
+  async function save() {
+    setErr(''); setMsg('')
+    const clean = qs.filter(q => q.label.trim()).map((q, i) => ({
+      id: q.id || 'q' + Date.now().toString(36) + i, label: q.label.trim(), type: q.type,
+      ...(q.type === 'select' || q.type === 'multi' ? { options: (q.options ?? []).map(o => o.trim()).filter(Boolean) } : {}),
+      ...(q.required ? { required: true } : {}),
+    }))
+    if (clean.some(q => (q.type === 'select' || q.type === 'multi') && !q.options?.length)) { setErr('Questions of type "Pick one" or "Pick any" need choices.'); return }
+    const { error } = await supabase.from('services').update({ intake_questions: clean }).eq('id', s.id)
+    if (error) setErr(errText(error)); else { setMsg('Questions saved.'); setQs(clean as Question[]); onSaved() }
+  }
+  return (
+    <details><summary>Intake questions ({qs.length})</summary>
+      <div className="form">
+        <p className="note">Customers answer these when they ask for a quote for this service. Everyone is also asked when they need it, where, and to describe it in their own words.</p>
+        {qs.map((q, i) => (
+          <div className="qline" key={q.id || i}>
+            <input aria-label="Question" placeholder="Question" value={q.label} onChange={e => upd(i, { label: e.target.value })} />
+            <select aria-label="Answer type" value={q.type} onChange={e => upd(i, { type: e.target.value as Question['type'] })}>{QTYPES.map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select>
+            {(q.type === 'select' || q.type === 'multi') && <input aria-label="Choices" placeholder="Choices, separated by commas" value={(q.options ?? []).join(', ')} onChange={e => upd(i, { options: e.target.value.split(',') })} />}
+            <label className="check"><input type="checkbox" checked={!!q.required} onChange={e => upd(i, { required: e.target.checked })} /> Required</label>
+            <button type="button" className="linkbtn" onClick={() => setQs(qs.filter((_, j) => j !== i))}>Remove</button>
+          </div>))}
+        <div className="row"><button type="button" className="btn ghost" onClick={() => setQs([...qs, { id: '', label: '', type: 'text' }])}>Add a question</button>
+          <button type="button" className="btn" onClick={save}>Save questions</button></div>
+        {msg && <p className="okmsg">{msg}</p>}{err && <p className="err">{err}</p>}
+      </div>
+    </details>
   )
 }
 
@@ -65,7 +207,7 @@ function AdminServices() {
   const addService = () => run(supabase.from('services').insert({ category: 'digital', name: 'New service', active: false, sort: (services.at(-1)?.sort ?? 0) + 10 }))
   return (
     <>
-      <p className="muted">Prices are in US dollars; customers see leones at the rate in Settings. Changes go live straight away. Hidden services stay on past orders.</p>
+      <p className="muted">The packages and prices below are your private price list: customers never see them, and you can add them to a quote with one click. Service names and descriptions are public. Changes go live straight away.</p>
       {msg && <p className="okmsg">{msg}</p>}{err && <p className="err">{err}</p>}
       <div className="stackgap">{services.map(s => (
         <article className="ordercard" key={s.id}>
@@ -89,6 +231,7 @@ function AdminServices() {
                 <td><input type="checkbox" checked={o.active} onChange={e => saveOption(o, { active: e.target.checked })} /></td>
               </tr>))}</tbody></table></div>
           <button className="btn ghost" onClick={() => addOption(s)}>Add a package</button>
+          <QuestionsEditor s={s} onSaved={reloadCatalogue} />
         </article>))}</div>
       <button className="btn mt" onClick={addService}>Add a service</button>
     </>

@@ -20,6 +20,17 @@ supabase/migrations/         database (run in order)
 supabase/functions/send-sms-otp  texts sign-in codes through Brevo (same as SmarTix)
 ```
 
+## Quotes (no public prices)
+
+Customers never see prices. They pick one or more services and answer that service's own intake questions
+(editable in Admin › Services › Intake questions), plus when, where and anything in their own words.
+The `intake-ai` edge function (Claude, `ANTHROPIC_API_KEY` secret; optional `INTAKE_AI_MODEL`) asks up to
+3 follow-up questions and writes a summary for staff. It never mentions prices. Without the key it skips
+follow-ups and builds a plain summary from the answers.
+The request lands in Admin › Orders › Quotes to price. Staff add priced lines (or pick from the private price
+list), set the deposit and how long the quote is valid, and Approve and send. The customer sees it in My orders
+and accepts and pays (deposit on one-off work + first month), or declines. "Tell them on WhatsApp" opens a ready message.
+
 ## How payment works (same as SmarTix)
 
 Sabi is owned by Gen X Music, so payments go to Gen X Music's accounts, like SmarTix:

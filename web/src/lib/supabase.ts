@@ -20,28 +20,34 @@ export type Option = {
 export type Service = {
   id: string; category: Category; name: string; description: string | null
   per_person: boolean; active: boolean; sort: number; service_options: Option[]
+  intake_questions: Question[]
 }
+export type Question = { id: string; label: string; type: 'text' | 'long' | 'number' | 'select' | 'multi' | 'yesno'; options?: string[]; required?: boolean; help?: string }
 export type Category = 'digital' | 'ai' | 'security' | 'support' | 'training' | 'projects'
 export type Profile = {
   id: string; full_name: string | null; business: string | null; email: string | null
   phone: string | null; location: string | null; role: 'customer' | 'staff' | 'admin'; created_at: string
 }
-export type OrderStatus = 'quote_requested' | 'payment_submitted' | 'paid' | 'rejected' | 'in_progress' | 'completed' | 'cancelled'
+export type OrderStatus = 'quote_requested' | 'quote_sent' | 'quote_declined' | 'payment_submitted' | 'paid' | 'rejected' | 'in_progress' | 'completed' | 'cancelled'
 export type Order = {
   id: string; ref: string; customer_id: string; status: OrderStatus; method: 'orange' | 'afrimoney' | 'card' | null
   txn_id: string | null; payer_number: string | null; nle_per_usd: number
   pay_today_usd: number; balance_usd: number; monthly_usd: number
   address: string | null; notes: string | null; admin_note: string | null; created_at: string; reviewed_at: string | null
+  intake: Intake | null; ai_summary: string | null; deposit_pct: number | null; quote_note: string | null
+  quote_sent_at: string | null; quote_valid_until: string | null; decline_reason: string | null
   order_items: { id: string; service_name: string; option_name: string; qty: number; price_usd: number; monthly_usd: number; is_quote: boolean }[]
   profiles?: Pick<Profile, 'full_name' | 'business' | 'email' | 'phone'> | null
 }
+export type QA = { q: string; a: string }
+export type Intake = { services: { id: string; name: string; answers: QA[] }[]; when?: string; description?: string; followups?: QA[]; ai?: boolean }
 
 export const CATEGORIES: Record<Category, string> = {
   digital: 'Digital basics', ai: 'AI on WhatsApp', security: 'Security',
   support: 'Support plans', training: 'Training', projects: 'Data and projects',
 }
 export const STATUS: Record<OrderStatus, string> = {
-  quote_requested: 'Quote requested', payment_submitted: 'Checking payment', paid: 'Paid',
+  quote_requested: 'Preparing your quote', quote_sent: 'Quote ready', quote_declined: 'Quote declined', payment_submitted: 'Checking payment', paid: 'Paid',
   rejected: 'Payment not found', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled',
 }
 export const METHOD = { orange: 'Orange Money', afrimoney: 'Afrimoney', card: 'Card' } as const

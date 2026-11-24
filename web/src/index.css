@@ -74,3 +74,17 @@ label.f input,label.f select,label.f textarea,.inp{min-height:44px;padding:10px 
 .scroll{overflow-x:auto}.tbl{border-collapse:collapse;width:100%;font-size:14px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:middle}
 .tbl input:not([type=checkbox]){min-height:40px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-width:90px}
 @media(max-width:760px){.two{grid-template-columns:1fr}.nav nav{order:3;width:100%;margin-left:0}}
+/* quotes and intake */
+.svc.picked{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
+.mtauto{margin-top:auto}
+fieldset.f{border:0;padding:0;margin:0;display:grid;gap:8px;min-width:0}fieldset.f legend{font-weight:600;padding:0;margin-bottom:8px}
+.prog{display:flex;gap:6px;margin:6px 0 18px}.prog i{flex:1;height:5px;border-radius:9px;background:var(--line)}.prog i.on{background:var(--orange)}
+textarea.summary,pre.summary{width:100%;font:15px/1.55 Figtree,system-ui,sans-serif;white-space:pre-wrap;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:12px;margin:8px 0 0}
+details>summary{cursor:pointer;font-weight:700;color:var(--blue);min-height:32px}
+.answers{display:grid;gap:8px;padding:8px 0}
+.num{text-align:right;white-space:nowrap}
+.quoteedit{border-top:1px dashed var(--line);padding-top:12px}
+.qline{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2fr) 70px 110px 110px auto;gap:8px;align-items:end}
+.qline input,.qline select{min-height:40px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+.qline label{display:grid;gap:2px;font-size:12px;font-weight:600}
+@media(max-width:760px){.qline{grid-template-columns:1fr 1fr;padding-bottom:10px;border-bottom:1px solid var(--line)}.qline>input:first-child{grid-column:1/-1}}
