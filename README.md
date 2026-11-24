@@ -56,7 +56,7 @@ Database: Supabase project **Sabi-App** (`tplfuhllauwfmxohdvqv`, eu-west-1) in t
 
 ## Live setup (Nov 24, 2026)
 
-- Site: https://sabi-app-lovat.vercel.app (Vercel, root directory `web`)
+- Site: https://www.sabitechsl.com (sabitechsl.com forwards to www; also https://sabi-app-lovat.vercel.app). Vercel, root directory `web`. DNS at GoDaddy: A @ 76.76.21.21, CNAME www cname.vercel-dns.com. Supabase Site URL = https://www.sabitechsl.com
 - Auth emails: Supabase custom SMTP through Resend, sender **Sabi <sabi@sabitechsl.com>** (domain sabitechsl.com verified in Resend; DNS at GoDaddy). Sign-in and Confirm sign-up templates show the code (`{{ .Token }}`) with the link as backup.
 - First admin: sabi@sabitechsl.com
 - Phone sign-in codes: not set up yet (needs the Brevo SMS hook above).
